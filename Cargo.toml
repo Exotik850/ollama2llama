@@ -1,0 +1,12 @@
+[package]
+name = "ollama2llama"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.99"
+clap = { version = "4.5.45", features = ["derive"] }
+ollama-file-find = { path = "../ollama-file-find/src/ollama-file-find-inner" }
+# ollama-file-find = { git = "https://github.com/Exotik850/ollama-file-find.git" }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9.34"
