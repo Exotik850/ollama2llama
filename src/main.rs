@@ -15,7 +15,7 @@ type Result<T> = std::result::Result<T, anyhow::Error>;
 fn main() -> Result<()> {
     // 1. Parse CLI and scan manifests
     let args = Args::parse();
-    let ScanOutcome { models, errors } = ollama_file_find::scan_manifests(args.scan_args());
+    let ScanOutcome { models, errors } = ollama_file_find::scan_manifests(&args.scan_args());
     report_scan_errors(&errors);
 
     // 2. Load config (or defaults) and apply simple field + macro overrides

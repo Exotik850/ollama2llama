@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.99"
 clap = { version = "4.5.45", features = ["derive"] }
-ollama-file-find = { version = "0.1.4" }
+ollama-file-find = { version = "0.1.5" }
 # ollama-file-find = { git = "https://github.com/Exotik850/ollama-file-find.git" }
 serde = { version = "1.0", features = ["derive"] }
 

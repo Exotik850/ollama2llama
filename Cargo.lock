@@ -212,9 +212,9 @@ checksum = "32a282da65faaf38286cf3be983213fcf1d2e2a58700e808f83f4ea9a4804bc0"
 
 [[package]]
 name = "ollama-file-find"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c19e97cf5983839528523470d4c0cd1814eccce9cf6b7a4e82c7411f553d4365"
+checksum = "8359b9997207b62c1e38ae11fcf1819b78279fb368029b51618627e65c0d6089"
 dependencies = [
  "dirs",
  "serde",
