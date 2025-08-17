@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use ollama_file_find::{ScanArgs, ollama_models_dir};
+
 #[derive(clap::Parser, Debug)]
 #[command(author, version, about="Import models from Ollama into a config file for use with llama-swap", long_about = None)]
 pub struct Args {
@@ -31,7 +33,7 @@ pub struct Args {
         short,
         long,
         value_name = "MODEL",
-        help = "Specify one or more models to import into the config file (can be used multiple times)",
+        help = "Specify the names of one or more models to import into the config file (can be used multiple times)",
         value_delimiter = ','
     )]
     pub specify_models: Option<Vec<String>>,
@@ -46,37 +48,6 @@ pub struct Args {
 
     #[arg(short, long, help = "Enable verbose output")]
     pub verbose: bool,
-
-    // ---------------------------- Search & Filtering ----------------------------
-    #[arg(
-        long,
-        value_name = "PATTERN",
-        help = "Glob(s) to include when searching model directory (comma separated or repeat)",
-        value_delimiter = ','
-    )]
-    pub include: Option<Vec<String>>,
-
-    #[arg(
-        long,
-        value_name = "PATTERN",
-        help = "Glob(s) to exclude from model search (comma separated or repeat)",
-        value_delimiter = ','
-    )]
-    pub exclude: Option<Vec<String>>,
-
-    #[arg(
-        long,
-        value_name = "REGEX",
-        help = "Regex applied to model name (must match)"
-    )]
-    pub name_regex: Option<String>,
-
-    #[arg(
-        long,
-        value_name = "REGEX",
-        help = "Regex applied to model name (must NOT match)"
-    )]
-    pub not_name_regex: Option<String>,
 
     // ---------------------------- Config Generation ----------------------------
     #[arg(
@@ -115,6 +86,7 @@ pub struct Args {
     pub log_level: Option<crate::config::LogLevel>,
 
     #[arg(
+        short='M',
         long,
         value_name = "MACRO=VALUE",
         help = "Add or override macro(s) in output config",
@@ -160,7 +132,12 @@ pub struct Args {
         help = "Refuse to overwrite an existing output file (error instead)"
     )]
     pub no_clobber: bool,
+}
 
-    #[arg(long, help = "Format YAML with minimal style (no pretty printing)")]
-    pub compact: bool,
+impl Args {
+    pub fn scan_args(&self) -> ScanArgs<'static> {
+        let model_dir = self.model_dir.clone().unwrap_or_else(ollama_models_dir);
+        ScanArgs::new(model_dir.join("manifests"), model_dir.join("blobs"))
+            .with_verbose(true) // enables blob paths
+    }
 }
