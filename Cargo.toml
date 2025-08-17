@@ -6,6 +6,7 @@ license = "MIT"
 authors = ["@Exotik850"]
 repository = "https://github.com/Exotik850/ollama2llama"
 description = "A tool for constructing and managing a llama-swap configuration file with Ollama models"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.99"
