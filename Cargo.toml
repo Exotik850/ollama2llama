@@ -2,6 +2,10 @@
 name = "ollama2llama"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+authors = ["@Exotik850"]
+repository = "https://github.com/Exotik850/ollama2llama"
+description = "A tool for constructing and managing a llama-swap configuration file with Ollama models"
 
 [dependencies]
 anyhow = "1.0.99"
