@@ -39,7 +39,7 @@ pub struct Args {
     pub specify_models: Option<Vec<String>>,
 
     #[arg(
-        short,
+        short = 'A',
         long,
         help = "Import all models from the model directory, this is ignored if `specify_models` is set",
         default_value_t = true
@@ -78,15 +78,11 @@ pub struct Args {
     )]
     pub health_check_timeout: Option<u64>,
 
-    #[arg(
-        long,
-        value_name = "LEVEL",
-        help = "Log level override (debug, info, warn, error)"
-    )]
+    #[arg(long, value_name = "LEVEL", help = "Log level override")]
     pub log_level: Option<crate::config::LogLevel>,
 
     #[arg(
-        short='M',
+        short = 'M',
         long,
         value_name = "MACRO=VALUE",
         help = "Add or override macro(s) in output config",
@@ -95,6 +91,7 @@ pub struct Args {
     pub macro_override: Option<Vec<String>>,
 
     #[arg(
+        short,
         long,
         value_name = "NAME=ALIAS1|ALIAS2",
         help = "Add aliases for a model (repeat or comma separated)",
@@ -103,8 +100,9 @@ pub struct Args {
     pub alias: Option<Vec<String>>,
 
     #[arg(
+        short,
         long,
-        value_name = "KEY=VALUE",
+        value_name = "NAME=KEY:VALUE|KEY:VALUE",
         help = "Add model filter key/value (repeat or comma separated)",
         value_delimiter = ','
     )]
@@ -137,7 +135,6 @@ pub struct Args {
 impl Args {
     pub fn scan_args(&self) -> ScanArgs<'static> {
         let model_dir = self.model_dir.clone().unwrap_or_else(ollama_models_dir);
-        ScanArgs::new(model_dir.join("manifests"), model_dir.join("blobs"))
-            .with_verbose(true) // enables blob paths
+        ScanArgs::new(model_dir.join("manifests"), model_dir.join("blobs")).with_verbose(true) // enables blob paths
     }
 }
