@@ -4,7 +4,7 @@ Import locally installed [Ollama](https://ollama.com) models into a YAML configu
 
 ## Quick Start
 ```
-cargo install --path .
+cargo binstall ollama2llama
 ollama2llama --all-models --output-config llama-swap.yaml
 ```
 This scans `$OLLAMA_MODELS` (or the default `~/.ollama/models`) and writes a `llama-swap.yaml` describing every discovered model.

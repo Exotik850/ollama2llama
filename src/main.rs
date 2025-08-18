@@ -74,7 +74,9 @@ fn main() -> Result<()> {
     );
 
     // 6. Optional grouping
-    apply_single_group(&mut config, &args, &selected_models);
+    if args.single_group {
+        apply_single_group(&mut config, &args, &selected_models);
+    }
 
     // 7. Serialize and write output (respecting dry-run / overwrite rules)
     let yaml = render_config(&config, &args)?;
@@ -122,16 +124,17 @@ fn apply_top_level_overrides(config: &mut Config, args: &Args) {
 
 /// Apply KEY=VALUE macro overrides passed via CLI.
 fn apply_macro_overrides(config: &mut Config, args: &Args) {
-    if let Some(macros) = &args.macro_override {
-        for kv in macros {
-            if let Some((k, v)) = kv.split_once('=') {
-                config
-                    .macros
-                    .insert(k.trim().to_string(), v.trim().to_string());
-            } else {
-                eprintln!("Ignoring malformed macro override (expected KEY=VALUE): {kv}");
-            }
-        }
+    let Some(macros) = &args.macro_override else {
+        return;
+    };
+    for kv in macros {
+        let Some((k, v)) = kv.split_once('=') else {
+            eprintln!("Ignoring malformed macro override (expected KEY=VALUE): {kv}");
+            continue;
+        };
+        config
+            .macros
+            .insert(k.trim().to_string(), v.trim().to_string());
     }
 }
 
@@ -207,19 +210,17 @@ fn import_models<'a>(
 
 /// Apply a single group containing all imported models if requested.
 fn apply_single_group(config: &mut Config, args: &Args, selected: &[SelectedModel]) {
-    if args.single_group {
-        let group_name = args
-            .single_group_name
-            .clone()
-            .unwrap_or_else(|| "imported".to_string());
-        let members: Vec<String> = selected.iter().map(|m| m.name.to_string()).collect();
-        config.groups.entry(group_name).or_insert(GroupConfig {
-            swap: Some(true),
-            exclusive: None,
-            persistent: None,
-            members,
-        });
-    }
+    let group_name = args
+        .single_group_name
+        .clone()
+        .unwrap_or_else(|| "imported".to_string());
+    let members: Vec<String> = selected.iter().map(|m| m.name.to_string()).collect();
+    config.groups.entry(group_name).or_insert(GroupConfig {
+        swap: Some(true),
+        exclusive: None,
+        persistent: None,
+        members,
+    });
 }
 
 /// Render the final YAML string. (Currently compact + pretty use same serializer.)
