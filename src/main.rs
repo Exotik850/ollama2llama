@@ -50,7 +50,6 @@ fn main() -> Result<()> {
                     m.name
                 );
             }
-
             Some(SelectedModel {
                 name: m.name.as_str(),
                 model_path: m.primary_blob_path.as_ref()?,
@@ -70,7 +69,7 @@ fn main() -> Result<()> {
         &selected_models,
         &alias_specs,
         &filter_specs,
-        &cmd_templates,
+        cmd_templates,
     );
 
     // 6. Optional grouping
@@ -89,7 +88,7 @@ fn main() -> Result<()> {
 /// Print any scan errors to stderr so the user can still get a partial result.
 fn report_scan_errors<E: std::fmt::Display>(errors: &[E]) {
     for e in errors {
-        eprintln!("Error scanning manifest: {}", e);
+        eprintln!("Error scanning manifest: {e}");
     }
 }
 
@@ -97,7 +96,7 @@ fn report_scan_errors<E: std::fmt::Display>(errors: &[E]) {
 fn load_base_config(args: &Args) -> Result<Config> {
     if let Some(path) = &args.input_config {
         if args.verbose {
-            eprintln!("Reading input config: {:?}", path);
+            eprintln!("Reading input config: {}", path.display());
         }
         let file = std::fs::read_to_string(path)?;
         Ok(serde_yaml::from_str(&file)?)
@@ -139,20 +138,18 @@ fn apply_macro_overrides(config: &mut Config, args: &Args) {
 }
 
 /// Struct holding resolved command template strings and override flags.
-struct CommandTemplates {
-    default_cmd_tpl: String,
-    default_stop_tpl: Option<String>,
+#[derive(Clone, Copy)]
+struct CommandTemplates<'a> {
+    default_cmd_tpl: &'a str,
+    default_stop_tpl: Option<&'a str>,
     override_cmd: bool,
     override_stop: bool,
 }
 
-fn command_templates(args: &Args) -> CommandTemplates {
+fn command_templates(args: &Args) -> CommandTemplates<'_> {
     CommandTemplates {
-        default_cmd_tpl: args
-            .cmd_template
-            .clone()
-            .unwrap_or_else(|| "{model_path}".to_string()),
-        default_stop_tpl: args.stop_cmd_template.clone(),
+        default_cmd_tpl: args.cmd_template.as_deref().unwrap_or("{model_path}"),
+        default_stop_tpl: args.stop_cmd_template.as_deref(),
         override_cmd: args.cmd_template.is_some(),
         override_stop: args.stop_cmd_template.is_some(),
     }
@@ -169,20 +166,20 @@ fn import_models<'a>(
     config: &mut Config,
     args: &Args,
     selected: impl IntoIterator<Item = &'a SelectedModel<'a>>,
-    alias_specs: &HashMap<String, Vec<String>>,
-    filter_specs: &HashMap<String, Vec<(String, String)>>,
-    templates: &CommandTemplates,
+    alias_specs: &HashMap<&str, Vec<&str>>,
+    filter_specs: &HashMap<&str, Vec<(&str, &str)>>,
+    CommandTemplates {
+        default_cmd_tpl,
+        default_stop_tpl,
+        override_cmd,
+        override_stop,
+    }: CommandTemplates,
 ) {
     for sm in selected {
-        let cmd = templates
-            .default_cmd_tpl
+        let cmd = default_cmd_tpl
             .replace("{model_path}", &sm.model_path.to_string_lossy())
-            .replace("{model_name}", &sm.name);
-        let cmd_stop = templates
-            .default_stop_tpl
-            .as_ref()
-            .map(|tpl| tpl.replace("{model_name}", &sm.name));
-
+            .replace("{model_name}", sm.name);
+        let cmd_stop = default_stop_tpl.map(|tpl| tpl.replace("{model_name}", sm.name));
         let entry = config
             .models
             .entry(sm.name.to_string())
@@ -190,19 +187,18 @@ fn import_models<'a>(
                 unlisted: args.unlisted,
                 ..ModelConfig::new(cmd.clone())
             });
-        if templates.override_cmd {
+        if override_cmd {
             entry.cmd = cmd;
         }
-        if templates.override_stop {
+        if override_stop {
             entry.cmd_stop = cmd_stop;
         }
-
         if let Some(add_aliases) = alias_specs.get(sm.name) {
             merge_vec(&mut entry.aliases, add_aliases);
         }
         if let Some(add_filters) = filter_specs.get(sm.name) {
             for (k, v) in add_filters {
-                entry.filters.insert(k.clone(), v.clone());
+                entry.filters.insert((*k).to_string(), (*v).to_string());
             }
         }
     }
@@ -210,17 +206,17 @@ fn import_models<'a>(
 
 /// Apply a single group containing all imported models if requested.
 fn apply_single_group(config: &mut Config, args: &Args, selected: &[SelectedModel]) {
-    let group_name = args
-        .single_group_name
-        .clone()
-        .unwrap_or_else(|| "imported".to_string());
+    let group_name = args.single_group_name.as_deref().unwrap_or("imported");
     let members: Vec<String> = selected.iter().map(|m| m.name.to_string()).collect();
-    config.groups.entry(group_name).or_insert(GroupConfig {
-        swap: Some(true),
-        exclusive: None,
-        persistent: None,
-        members,
-    });
+    config
+        .groups
+        .entry(group_name.into())
+        .or_insert(GroupConfig {
+            swap: Some(true),
+            exclusive: None,
+            persistent: None,
+            members,
+        });
 }
 
 /// Render the final YAML string. (Currently compact + pretty use same serializer.)
@@ -248,7 +244,7 @@ fn write_config_output(yaml: &str, _config: &Config, args: &Args) -> Result<()> 
     } else if let Some(input_path) = &args.input_config {
         write_file(input_path, yaml.as_bytes())?;
         if args.verbose {
-            eprintln!("Updated input config in place: {:?}", input_path);
+            eprintln!("Updated input config in place: {}", input_path.display());
         }
     } else {
         println!("{yaml}");
@@ -262,18 +258,18 @@ fn write_config_output(yaml: &str, _config: &Config, args: &Args) -> Result<()> 
 // Comments?
 // Write to file/stdout
 
-fn parse_multi_map(spec: Option<&Vec<String>>) -> HashMap<String, Vec<String>> {
-    let mut out: HashMap<String, Vec<String>> = HashMap::new();
+fn parse_multi_map(spec: Option<&Vec<String>>) -> HashMap<&str, Vec<&str>> {
+    let mut out: HashMap<&str, Vec<&str>> = HashMap::new();
     if let Some(specs) = spec {
         for s in specs {
             if let Some((model, aliases)) = s.split_once('=') {
-                let arr: Vec<String> = aliases
+                let arr: Vec<_> = aliases
                     .split('|')
-                    .map(|a| a.trim().to_string())
+                    .map(str::trim)
                     .filter(|a| !a.is_empty())
                     .collect();
                 if !arr.is_empty() {
-                    out.entry(model.trim().to_string()).or_default().extend(arr);
+                    out.entry(model.trim()).or_default().extend(arr);
                 }
             }
         }
@@ -281,17 +277,17 @@ fn parse_multi_map(spec: Option<&Vec<String>>) -> HashMap<String, Vec<String>> {
     out
 }
 
-fn parse_multi_kv_map(spec: Option<&Vec<String>>) -> HashMap<String, Vec<(String, String)>> {
-    let mut out: HashMap<String, Vec<(String, String)>> = HashMap::new();
+fn parse_multi_kv_map(spec: Option<&Vec<String>>) -> HashMap<&str, Vec<(&str, &str)>> {
+    let mut out: HashMap<&str, Vec<(&str, &str)>> = HashMap::new();
     if let Some(specs) = spec {
         for s in specs {
             if let Some((model, rest)) = s.split_once('=') {
                 for kv in rest.split('|') {
                     if let Some((k, v)) = kv.split_once(':').or_else(|| kv.split_once('=')) {
                         // accept k:v or k=v inside
-                        out.entry(model.trim().to_string())
+                        out.entry(model.trim())
                             .or_default()
-                            .push((k.trim().to_string(), v.trim().to_string()));
+                            .push((k.trim(), v.trim()));
                     }
                 }
             }
@@ -300,11 +296,12 @@ fn parse_multi_kv_map(spec: Option<&Vec<String>>) -> HashMap<String, Vec<(String
     out
 }
 
-fn merge_vec(target: &mut Vec<String>, additions: &Vec<String>) {
-    let mut existing: HashSet<String> = target.iter().cloned().collect();
-    for a in additions {
-        if existing.insert(a.clone()) {
-            target.push(a.clone());
+fn merge_vec(target: &mut Vec<String>, additions: &[&str]) {
+    let mut existing: HashSet<_> = target.iter().cloned().collect();
+    for &a in additions {
+        if !existing.contains(a) {
+            existing.insert(a.to_string());
+            target.push(a.to_string());
         }
     }
 }

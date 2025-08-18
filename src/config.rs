@@ -51,6 +51,7 @@ impl Default for Config {
     }
 }
 
+// helper to skip serializing false booleans
 fn is_false(value: &bool) -> bool {
     !*value
 }
